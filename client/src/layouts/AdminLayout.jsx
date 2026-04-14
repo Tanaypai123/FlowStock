@@ -383,6 +383,9 @@ export function AdminLayout() {
   // Bug Report modal
   const [bugOpen, setBugOpen] = useState(false);
 
+  // Mobile sidebar open/closed
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   async function handleLogout() {
     await signOut();
     navigate("/login", { replace: true });
@@ -404,9 +407,21 @@ export function AdminLayout() {
 
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900">
+      {/* ── Mobile overlay backdrop ────────────────────────────────────────────── */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
       {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
       <aside
-        className="flex w-16 shrink-0 flex-col border-r border-slate-800 bg-slate-900 md:w-56"
+        className={[
+          "flex flex-col border-r border-slate-800 bg-slate-900",
+          "fixed inset-y-0 left-0 z-50 w-64 transition-transform duration-200",
+          "md:static md:z-auto md:w-16 xl:w-56",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+        ].join(" ")}
         aria-label="Admin navigation"
       >
         {/* Sidebar header */}
@@ -417,16 +432,26 @@ export function AdminLayout() {
             className="h-9 w-9 shrink-0 rounded-lg object-contain"
             onError={(e) => { e.currentTarget.style.display = "none"; }}
           />
-          <span className="hidden md:block text-sm font-bold tracking-tight text-white truncate">
+          <span className="text-sm font-bold tracking-tight text-white truncate">
             FlowStock
           </span>
+          {/* Close button on mobile */}
+          <button
+            type="button"
+            className="ml-auto md:hidden text-slate-400 hover:text-white p-1"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close menu"
+          >
+            ✕
+          </button>
         </div>
 
         {/* Setup banner — shown only when no profile */}
         {!businessProfile && (
           <NavLink
             to="/admin/setup"
-            className="mx-2 mt-2 hidden md:flex items-center gap-2 rounded-lg bg-indigo-900/60 border border-indigo-700/50 px-3 py-2 text-xs text-indigo-300 hover:bg-indigo-800/60 transition"
+            className="mx-2 mt-2 flex items-center gap-2 rounded-lg bg-indigo-900/60 border border-indigo-700/50 px-3 py-2 text-xs text-indigo-300 hover:bg-indigo-800/60 transition"
+            onClick={() => setSidebarOpen(false)}
           >
             <span>⚙️</span>
             <span className="leading-snug">Complete business setup</span>
@@ -436,7 +461,7 @@ export function AdminLayout() {
         {/* Nav links */}
         <nav className="flex flex-1 flex-col gap-0.5 p-2">
           {NAV.map(({ to, label, Icon, badge }) => (
-            <NavLink key={to} to={to} className={navLinkClass} title={label}>
+            <NavLink key={to} to={to} className={navLinkClass} title={label} onClick={() => setSidebarOpen(false)}>
               <div className="relative">
                 <Icon className={iconClass} />
                 {badge && openCount > 0 && (
@@ -445,9 +470,10 @@ export function AdminLayout() {
                   </span>
                 )}
               </div>
-              <span className="hidden md:inline">{label}</span>
+              {/* Show label in mobile drawer (always) + at xl on desktop */}
+              <span className="md:hidden xl:inline">{label}</span>
               {badge && openCount > 0 && (
-                <span className="ml-auto hidden md:flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                <span className="ml-auto md:hidden xl:flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
                   {openCount > 99 ? "99+" : openCount}
                 </span>
               )}
@@ -485,11 +511,11 @@ export function AdminLayout() {
           <button
             type="button"
             onClick={() => setBugOpen(true)}
-            className="flex w-full items-center justify-center md:justify-start gap-3 rounded-lg py-2.5 px-2 md:px-3 text-sm font-medium text-slate-400 hover:bg-slate-800/70 hover:text-slate-200 transition-colors"
+            className="flex w-full items-center gap-3 rounded-lg py-2.5 px-3 text-sm font-medium text-slate-400 hover:bg-slate-800/70 hover:text-slate-200 transition-colors"
             title="Report a Bug"
           >
             <span className="text-lg leading-none">🐛</span>
-            <span className="hidden md:inline">Report a Bug</span>
+            <span>Report a Bug</span>
           </button>
         </div>
       </aside>
@@ -498,6 +524,18 @@ export function AdminLayout() {
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         {/* Top navbar */}
         <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm md:px-6">
+          {/* Hamburger — mobile only */}
+          <button
+            type="button"
+            className="mr-3 flex md:hidden items-center justify-center rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open navigation menu"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+          </button>
+
           {/* Business name / switcher */}
           <AdminBusinessSwitcher
             businesses={businesses}

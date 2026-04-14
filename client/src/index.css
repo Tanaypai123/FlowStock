@@ -1,3 +1,52 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─── Global Responsive Utilities ─────────────────────────────────────────── */
+
+/* All tables scroll horizontally on small screens */
+table {
+  min-width: 100%;
+}
+
+.overflow-x-auto table {
+  min-width: 500px;
+}
+
+/* Safe-area bottom padding for iOS home indicator */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 8px);
+}
+
+/* Ensure admin page content gets proper left offset on md+ (sidebar is static) */
+@media (min-width: 768px) {
+  /* DevLayout sidebar — override inline transform when md+ */
+  .md\:static {
+    position: static !important;
+  }
+  .md\:translate-x-0 {
+    transform: translateX(0) !important;
+  }
+  .md\:z-auto {
+    z-index: auto !important;
+  }
+}
+
+/* Smooth page transitions */
+main {
+  transition: padding 0.2s ease;
+}
+
+/* Responsive card grids — ensure single column on mobile */
+@media (max-width: 480px) {
+  .grid.gap-4 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Ensure modals never overflow on very small screens */
+@media (max-width: 380px) {
+  .rounded-2xl, .rounded-xl {
+    border-radius: 12px;
+  }
+}

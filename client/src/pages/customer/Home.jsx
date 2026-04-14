@@ -32,7 +32,7 @@ function Toast({ message, type = "success", onDone }) {
   return (
     <div
       className={[
-        "fixed bottom-6 left-1/2 z-[100] -translate-x-1/2 rounded-xl px-5 py-3 text-sm font-medium text-white shadow-xl transition-all",
+        "fixed bottom-20 sm:bottom-6 left-1/2 z-[100] -translate-x-1/2 rounded-xl px-5 py-3 text-sm font-medium text-white shadow-xl transition-all",
         type === "success" ? "bg-emerald-600" : "bg-red-600",
       ].join(" ")}
     >
@@ -1258,9 +1258,9 @@ export function CustomerHome() {
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
         <input type="search" value={search} onChange={(e) => setSearch(e.target.value)}
           placeholder="Search products…"
-          className="flex-1 max-w-sm rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+          className="w-full sm:flex-1 sm:max-w-sm rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
         />
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {[
             { key: "all",       label: "All" },
             { key: "in_stock",  label: "✓ In Stock" },

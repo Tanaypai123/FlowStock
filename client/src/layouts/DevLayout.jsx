@@ -17,6 +17,9 @@ export function DevLayout() {
   const navigate  = useNavigate();
   const [email, setEmail] = useState("");
 
+  // Mobile sidebar open/closed
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   // Live open bug count badge — refresh every 60 s
   const [openBugCount, setOpenBugCount] = useState(0);
   useEffect(() => {
@@ -51,7 +54,15 @@ export function DevLayout() {
   return (
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Inter', system-ui, sans-serif", background: "#f8fafc" }}>
 
-      {/* ── Sidebar ───────────────────────────────────────────────────────── */}
+      {/* ── Mobile overlay backdrop ─────────────────────────────────────────── */}
+      {sidebarOpen && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.5)" }}
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
       <aside style={{
         width: 220,
         background: "#111827",
@@ -59,19 +70,34 @@ export function DevLayout() {
         display: "flex",
         flexDirection: "column",
         flexShrink: 0,
-        position: "sticky",
+        position: "fixed",
         top: 0,
-        height: "100vh",
+        bottom: 0,
+        left: 0,
+        zIndex: 50,
         overflowY: "auto",
-      }}>
+        transition: "transform 0.2s ease",
+        transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
+      }}
+      className="md:static md:translate-x-0"
+      >
         {/* Sidebar header */}
-        <div style={{ padding: "20px 16px 12px", borderBottom: "1px solid #1f2937" }}>
-          <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "#6b7280", marginBottom: 4 }}>
-            FlowStock
+        <div style={{ padding: "20px 16px 12px", borderBottom: "1px solid #1f2937", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "#6b7280", marginBottom: 4 }}>
+              FlowStock
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#f9fafb", lineHeight: 1.3 }}>
+              Dev Console
+            </div>
           </div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "#f9fafb", lineHeight: 1.3 }}>
-            Dev Console
-          </div>
+          {/* Close button — mobile only */}
+          <button
+            onClick={() => setSidebarOpen(false)}
+            style={{ background: "transparent", border: "none", color: "#6b7280", fontSize: 18, cursor: "pointer", padding: "4px 6px" }}
+            className="md:hidden"
+            aria-label="Close menu"
+          >✕</button>
         </div>
 
         {/* Nav links */}
@@ -80,6 +106,7 @@ export function DevLayout() {
             <NavLink
               key={to}
               to={to}
+              onClick={() => setSidebarOpen(false)}
               style={({ isActive }) => ({
                 display: "flex",
                 alignItems: "center",
@@ -138,8 +165,9 @@ export function DevLayout() {
         </div>
       </aside>
 
-      {/* ── Main area ────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+      {/* ── Main area ────────────────────────────────────────────────────────── */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}
+           className="md:ml-0">
 
         {/* Top bar */}
         <header style={{
@@ -149,16 +177,31 @@ export function DevLayout() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 24px",
+          padding: "0 16px",
           position: "sticky",
           top: 0,
           zIndex: 10,
         }}>
-          <span style={{ fontWeight: 700, fontSize: 14, color: "#111827", letterSpacing: "-0.01em" }}>
-            FlowStock Dev Console
-          </span>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ fontSize: 12, color: "#6b7280" }}>{email}</span>
+            {/* Hamburger — mobile only */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden"
+              style={{
+                background: "transparent", border: "1px solid #e5e7eb",
+                borderRadius: 6, padding: "5px 8px", cursor: "pointer",
+                color: "#374151", fontSize: 16, lineHeight: 1,
+              }}
+              aria-label="Open navigation"
+            >
+              ☰
+            </button>
+            <span style={{ fontWeight: 700, fontSize: 14, color: "#111827", letterSpacing: "-0.01em" }}>
+              FlowStock Dev Console
+            </span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 12, color: "#6b7280" }} className="hidden sm:inline">{email}</span>
             <button
               onClick={handleLogout}
               style={{
@@ -178,10 +221,11 @@ export function DevLayout() {
         </header>
 
         {/* Page content */}
-        <main style={{ flex: 1, padding: 28, overflowY: "auto" }}>
+        <main style={{ flex: 1, padding: "16px", overflowY: "auto" }} className="sm:p-7">
           <Outlet />
         </main>
       </div>
     </div>
   );
 }
+

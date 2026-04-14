@@ -70,9 +70,9 @@ function BusinessSwitcher({ selectedBusinessId, setSelectedBusinessId }) {
   if (loading || !fetched) {
     // Show a loading placeholder
     return (
-      <span className="hidden sm:flex items-center gap-2 text-sm font-medium text-slate-500 animate-pulse">
+      <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500 animate-pulse">
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-        <span className="h-4 w-28 rounded bg-slate-200" />
+        <span className="hidden sm:block h-4 w-24 rounded bg-slate-200" />
       </span>
     );
   }
@@ -81,10 +81,11 @@ function BusinessSwitcher({ selectedBusinessId, setSelectedBusinessId }) {
   if (businesses.length <= 1) {
     if (!businessLabel) return null;
     return (
-      <span className="hidden sm:flex items-center gap-2 text-sm font-medium text-slate-700">
+      <span className="flex items-center gap-1.5 text-xs sm:text-sm font-medium text-slate-700">
         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
-        <span className="truncate max-w-[180px]">
-          Shopping at <strong className="text-slate-900">{businessLabel}</strong>
+        <span className="truncate max-w-[120px] sm:max-w-[180px]">
+          <span className="hidden sm:inline">Shopping at </span>
+          <strong className="text-slate-900">{businessLabel}</strong>
         </span>
       </span>
     );
@@ -97,7 +98,7 @@ function BusinessSwitcher({ selectedBusinessId, setSelectedBusinessId }) {
         id="business-switcher-btn"
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="hidden sm:flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all max-w-[220px]"
+        className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 sm:px-2.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all max-w-[160px] sm:max-w-[220px]"
         title="Switch business"
       >
         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
@@ -243,19 +244,21 @@ export function CustomerLayout() {
               </span>
             </Link>
 
+            {/* Bug Report — icon-only on mobile, text on sm+ */}
             <button
               type="button"
               onClick={() => setBugOpen(true)}
-              className="hidden sm:flex items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+              className="flex items-center justify-center rounded-lg border border-slate-200 bg-white p-1.5 sm:px-2.5 sm:py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors"
               title="Report a Bug"
             >
-              🐛 Report Bug
+              <span>🐛</span>
+              <span className="hidden sm:inline ml-1">Report Bug</span>
             </button>
 
             <button
               type="button"
               onClick={handleLogout}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 sm:px-3 text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
             >
               Logout
             </button>
@@ -264,9 +267,25 @@ export function CustomerLayout() {
       </header>
 
       {/* ── Page content ── */}
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 pb-24 sm:pb-8">
         <Outlet />
       </main>
+
+      {/* ── Mobile bottom nav ────────────────────────────────────────────────── */}
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur-md">
+        <div className="flex items-center justify-around px-2 pb-safe">
+          {NAV.map(({ to, label, emoji }) => (
+            <a
+              key={to}
+              href={to}
+              className="flex flex-col items-center gap-0.5 px-3 py-3 min-w-[60px] text-slate-500 hover:text-slate-900"
+            >
+              <span className="text-xl leading-none">{emoji}</span>
+              <span className="text-[10px] font-medium">{label}</span>
+            </a>
+          ))}
+        </div>
+      </nav>
 
       {/* ── Bug Report Modal ────────────────────────────────────────────────── */}
       <BugReportModal
