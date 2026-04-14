@@ -36,7 +36,7 @@ export default function DriverLogin() {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/driver/auth/login", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/api/driver/auth/login`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ phone: phone.trim(), password }),
