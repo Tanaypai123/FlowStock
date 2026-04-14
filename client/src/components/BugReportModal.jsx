@@ -137,7 +137,7 @@ export function BugReportModal({ isOpen, onClose, reporterType, reporterId, busi
       reader.readAsDataURL(file);
     });
 
-    const res = await fetch("/api/bugs/upload-screenshot", {
+    const res = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/api/bugs/upload-screenshot`, {
       method: "POST",
       headers: {
         "Content-Type":  "application/json",
@@ -165,7 +165,7 @@ export function BugReportModal({ isOpen, onClose, reporterType, reporterId, busi
       );
 
       // 2. Submit bug report
-      const res = await fetch("/api/bugs/report", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/api/bugs/report`, {
         method: "POST",
         headers: {
           "Content-Type":  "application/json",
