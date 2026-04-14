@@ -23,7 +23,8 @@ export async function driverApi(path, options = {}, ctx = {}) {
     throw new Error("No driver session. Please login.");
   }
 
-  const res = await fetch(path, {
+  const BASE = import.meta.env.VITE_API_URL ?? "";
+  const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",

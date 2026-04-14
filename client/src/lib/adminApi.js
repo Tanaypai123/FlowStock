@@ -22,7 +22,8 @@ export async function adminApi(path, options = {}) {
 
   const businessId = localStorage.getItem(LS_BUSINESS_KEY) ?? "";
 
-  const res = await fetch(path, {
+  const BASE = import.meta.env.VITE_API_URL ?? "";
+  const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -56,7 +57,8 @@ export async function adminApiRaw(path, body, contentType) {
 
   const businessId = localStorage.getItem(LS_BUSINESS_KEY) ?? "";
 
-  const res = await fetch(path, {
+  const BASE = import.meta.env.VITE_API_URL ?? "";
+  const res = await fetch(`${BASE}${path}`, {
     method: "POST",
     body,
     headers: {

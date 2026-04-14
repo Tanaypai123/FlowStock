@@ -21,7 +21,8 @@ const STORAGE_BIZ_ID = "driverSelectedBusinessId";
 // ─── Thin fetch helper (no business header — used for auth calls) ─────────────
 export async function driverAuthFetch(path, options = {}, token) {
   const t = token || localStorage.getItem(STORAGE_TOKEN);
-  const res = await fetch(path, {
+  const BASE = import.meta.env.VITE_API_URL ?? "";
+  const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -36,7 +37,7 @@ export async function driverAuthFetch(path, options = {}, token) {
 
 // ─── Fetch businesses from API (no x-business-id needed here) ────────────────
 async function fetchBusinessesFromApi(token) {
-  const res = await fetch("/api/driver/businesses", {
+  const res = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/api/driver/businesses`, {
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,

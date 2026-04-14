@@ -152,7 +152,7 @@ export default function AuthCallback() {
         localStorage.removeItem("pendingJoinCode");
         try {
           setStatus("Joining business…");
-          const joinRes = await fetch("/api/business/join", {
+          const joinRes = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/api/business/join`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -174,7 +174,7 @@ export default function AuthCallback() {
 
       // 2. Check how many businesses this customer belongs to
       try {
-        const bizRes  = await fetch("/api/business/my-businesses", {
+        const bizRes  = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/api/business/my-businesses`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const bizJson = await bizRes.json();
