@@ -179,7 +179,7 @@ export function CustomerSupport() {
     if (!token) throw new Error("Not signed in");
 
     const buf = await file.arrayBuffer();
-    const res = await fetch("/api/complaints/upload-image", {
+    const res = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/api/complaints/upload-image`, {
       method: "POST",
       body: buf,
       headers: { "Content-Type": file.type, Authorization: `Bearer ${token}` },
