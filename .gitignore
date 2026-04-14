@@ -1,7 +1,10 @@
 node_modules
-dist
 build
 .env
 .env.local
 *.log
 .DS_Store
+
+# dist ignore karo — except shared/dist (Render needs it)
+dist
+!shared/dist
