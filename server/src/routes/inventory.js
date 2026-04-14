@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { supabaseAdmin } from "../../lib/supabase.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
+import { resolveBusinessId } from "../middleware/resolveBusinessId.js";
 import {
   stockStatus,
   computeSoldQty,
@@ -40,6 +41,7 @@ async function enrichItems(rows) {
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 export const inventoryRouter = Router();
+inventoryRouter.use(resolveBusinessId);
 inventoryRouter.use(requireAdmin);
 
 // ─── GET /api/inventory ───────────────────────────────────────────────────────
@@ -170,7 +172,8 @@ inventoryRouter.post("/", async (req, res) => {
         image_urls:      Array.isArray(image_urls) ? image_urls.filter(Boolean) : [],
         alert_50_sent:   false,
         alert_low_sent:  false,
-        admin_id:        adminId ?? null,   // ← business isolation stamp
+        admin_id:        adminId ?? null,
+        business_id:     req.businessId ?? null,
         updated_at:      new Date().toISOString(),
       })
       .select(INV_SELECT)
