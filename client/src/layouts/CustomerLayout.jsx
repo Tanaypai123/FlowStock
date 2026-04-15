@@ -83,9 +83,8 @@ function BusinessSwitcher({ selectedBusinessId, setSelectedBusinessId }) {
     return (
       <span className="flex items-center gap-1.5 text-xs sm:text-sm font-medium text-slate-700">
         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
-        <span className="truncate max-w-[120px] sm:max-w-[180px]">
-          <span className="hidden sm:inline">Shopping at </span>
-          <strong className="text-slate-900">{businessLabel}</strong>
+        <span className="truncate max-w-[140px] sm:max-w-[180px]">
+          Shopping at <strong className="text-slate-900">{businessLabel}</strong>
         </span>
       </span>
     );
@@ -205,8 +204,8 @@ export function CustomerLayout() {
             <span className="hidden sm:inline">FlowStock</span>
           </Link>
 
-          {/* Nav links */}
-          <nav className="flex items-center gap-0.5">
+          {/* Nav links — hidden on mobile, bottom nav handles navigation */}
+          <nav className="hidden sm:flex items-center gap-0.5">
             {NAV.map(({ to, label, emoji }) => (
               <NavLink
                 key={to}
@@ -234,8 +233,8 @@ export function CustomerLayout() {
               setSelectedBusinessId={setSelectedBusinessId}
             />
 
-            {/* Profile avatar */}
-            <Link to="/customer/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            {/* Profile avatar — hidden on mobile (Profile tab in bottom nav) */}
+            <Link to="/customer/profile" className="hidden sm:flex items-center gap-2 hover:opacity-80 transition-opacity">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white ring-2 ring-slate-300">
                 {name.slice(0, 1).toUpperCase()}
               </div>
@@ -272,17 +271,48 @@ export function CustomerLayout() {
       </main>
 
       {/* ── Mobile bottom nav ────────────────────────────────────────────────── */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur-md">
-        <div className="flex items-center justify-around px-2 pb-safe">
+      <nav
+        className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white"
+        style={{
+          borderTop: "1px solid rgba(226,232,240,0.9)",
+          boxShadow: "0 -2px 16px rgba(0,0,0,0.07)",
+          paddingBottom: "env(safe-area-inset-bottom, 6px)",
+        }}
+      >
+        <div className="flex items-stretch justify-around">
           {NAV.map(({ to, label, emoji }) => (
-            <a
+            <NavLink
               key={to}
-              href={to}
-              className="flex flex-col items-center gap-0.5 px-3 py-3 min-w-[60px] text-slate-500 hover:text-slate-900"
+              to={to}
+              className={({ isActive }) =>
+                [
+                  "relative flex flex-col items-center justify-center gap-0.5 pt-2.5 pb-1.5 flex-1 transition-all",
+                  isActive ? "text-indigo-600" : "text-slate-400",
+                ].join(" ")
+              }
             >
-              <span className="text-xl leading-none">{emoji}</span>
-              <span className="text-[10px] font-medium">{label}</span>
-            </a>
+              {({ isActive }) => (
+                <>
+                  <span
+                    className="text-[22px] leading-none transition-transform"
+                    style={{ transform: isActive ? "scale(1.12)" : "scale(1)" }}
+                  >
+                    {emoji}
+                  </span>
+                  <span
+                    className="text-[10px] font-bold tracking-wide"
+                    style={{ color: isActive ? "#4f46e5" : "#94a3b8" }}
+                  >
+                    {label}
+                  </span>
+                  {isActive && (
+                    <span
+                      className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 bg-indigo-600 rounded-full"
+                    />
+                  )}
+                </>
+              )}
+            </NavLink>
           ))}
         </div>
       </nav>

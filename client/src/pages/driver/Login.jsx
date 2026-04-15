@@ -66,31 +66,85 @@ export default function DriverLogin() {
     }
   }
 
+  const PAGE_BG = { background: "linear-gradient(135deg, #0a0118 0%, #1a0533 50%, #0d0d2b 100%)" };
+  const CARD_STYLE = {
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.1)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
+    boxShadow: "0 25px 50px rgba(0,0,0,0.5)",
+    borderRadius: "24px",
+    padding: "40px",
+  };
+
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-      {/* Card */}
-      <div className="w-full max-w-sm">
-        {/* Logo & Branding */}
-        <div className="flex flex-col items-center mb-8 gap-3">
-          <div className="h-14 w-14 rounded-2xl bg-violet-600 flex items-center justify-center text-2xl shadow-lg shadow-violet-900/40">
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", position: "relative", overflow: "hidden", ...PAGE_BG }}>
+
+      {/* ── Animated background blobs ── */}
+      <div style={{ position: "fixed", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
+        <div style={{
+          position: "absolute", top: "-100px", right: "-80px",
+          width: "420px", height: "420px", borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(139,92,246,0.2) 0%, transparent 70%)",
+          animation: "driverBlob 10s ease-in-out infinite",
+        }} />
+        <div style={{
+          position: "absolute", bottom: "-80px", left: "-60px",
+          width: "380px", height: "380px", borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%)",
+          animation: "driverBlob 8s ease-in-out infinite reverse",
+        }} />
+        <div style={{
+          position: "absolute", top: "50%", left: "20%",
+          width: "280px", height: "280px", borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(79,70,229,0.1) 0%, transparent 70%)",
+          animation: "driverBlob 6s ease-in-out infinite 1.5s",
+        }} />
+        <style>{`
+          @keyframes driverBlob {
+            0%,100% { transform: translateY(0px) scale(1); }
+            50% { transform: translateY(-24px) scale(1.05); }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            * { animation-duration: 0.01ms !important; }
+          }
+        `}</style>
+      </div>
+
+      <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: "400px" }}>
+
+        {/* ── Brand header ── */}
+        <div style={{ textAlign: "center", marginBottom: "32px" }}>
+          <div style={{
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            width: "64px", height: "64px", borderRadius: "18px", marginBottom: "16px",
+            background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+            boxShadow: "0 8px 32px rgba(99,102,241,0.45)",
+            fontSize: "28px",
+          }}>
             🚚
           </div>
-          <div className="text-center">
-            <h1 className="text-xl font-bold text-white tracking-tight">
-              FlowStock <span className="text-violet-400">Driver</span>
+          <div>
+            <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#fff", margin: "0 0 4px", letterSpacing: "-0.02em" }}>
+              FlowStock <span style={{ color: "#818cf8" }}>Driver</span>
             </h1>
-            <p className="text-sm text-slate-400 mt-0.5">Sign in to your driver account</p>
+            <p style={{ fontSize: "14px", color: "#9ca3af", margin: 0 }}>
+              Sign in to your driver account
+            </p>
           </div>
         </div>
 
-        {/* Form Card */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-          <h2 className="text-base font-semibold text-white mb-6">Driver Login</h2>
+        {/* ── Glass card ── */}
+        <div style={CARD_STYLE}>
+          <h2 style={{ fontSize: "22px", fontWeight: 700, color: "#fff", margin: "0 0 28px" }}>
+            Driver Login
+          </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+
             {/* Phone */}
             <div>
-              <label htmlFor="driver-phone" className="block text-xs font-medium text-slate-400 mb-1.5">
+              <label htmlFor="driver-phone" style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "rgba(196,181,253,0.7)", marginBottom: "6px" }}>
                 Phone Number
               </label>
               <input
@@ -100,13 +154,20 @@ export default function DriverLogin() {
                 placeholder="e.g. 9876543210"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full rounded-xl bg-slate-800 border border-slate-700 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
+                style={{
+                  width: "100%", borderRadius: "12px", padding: "12px 16px",
+                  fontSize: "14px", color: "#fff", boxSizing: "border-box", outline: "none",
+                  background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)",
+                  transition: "border-color 0.2s, box-shadow 0.2s",
+                }}
+                onFocus={(e) => { e.target.style.borderColor = "#6366f1"; e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.2)"; }}
+                onBlur={(e) => { e.target.style.borderColor = "rgba(255,255,255,0.1)"; e.target.style.boxShadow = "none"; }}
               />
             </div>
 
             {/* Password */}
             <div>
-              <label htmlFor="driver-password" className="block text-xs font-medium text-slate-400 mb-1.5">
+              <label htmlFor="driver-password" style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "rgba(196,181,253,0.7)", marginBottom: "6px" }}>
                 Password
               </label>
               <input
@@ -116,14 +177,21 @@ export default function DriverLogin() {
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl bg-slate-800 border border-slate-700 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
+                style={{
+                  width: "100%", borderRadius: "12px", padding: "12px 16px",
+                  fontSize: "14px", color: "#fff", boxSizing: "border-box", outline: "none",
+                  background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)",
+                  transition: "border-color 0.2s, box-shadow 0.2s",
+                }}
+                onFocus={(e) => { e.target.style.borderColor = "#6366f1"; e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.2)"; }}
+                onBlur={(e) => { e.target.style.borderColor = "rgba(255,255,255,0.1)"; e.target.style.boxShadow = "none"; }}
               />
             </div>
 
             {/* Error */}
             {error && (
-              <div className="rounded-lg bg-red-900/30 border border-red-700/50 px-3.5 py-2.5">
-                <p className="text-xs text-red-300">{error}</p>
+              <div style={{ borderRadius: "10px", padding: "10px 14px", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)" }}>
+                <p style={{ fontSize: "13px", color: "#fca5a5", margin: 0 }}>{error}</p>
               </div>
             )}
 
@@ -132,21 +200,30 @@ export default function DriverLogin() {
               id="driver-login-btn"
               type="submit"
               disabled={submitting}
-              className="w-full rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2.5 text-sm font-semibold text-white transition-colors shadow-lg shadow-violet-900/30 mt-2"
+              style={{
+                width: "100%", borderRadius: "12px", padding: "14px 20px",
+                fontSize: "15px", fontWeight: 700, color: "#fff", border: "none", cursor: "pointer",
+                background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                boxShadow: "0 4px 20px rgba(99,102,241,0.45)",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                opacity: submitting ? 0.6 : 1,
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => { if (!submitting) { e.currentTarget.style.filter = "brightness(1.12)"; e.currentTarget.style.transform = "scale(1.02)"; }}}
+              onMouseLeave={(e) => { e.currentTarget.style.filter = ""; e.currentTarget.style.transform = ""; }}
             >
               {submitting ? (
-                <span className="flex items-center justify-center gap-2">
+                <>
                   <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
                   Signing in…
-                </span>
-              ) : (
-                "Login"
-              )}
+                </>
+              ) : "Login"}
             </button>
           </form>
         </div>
 
-        <p className="text-center text-xs text-slate-600 mt-6">
+        {/* Footer note */}
+        <p style={{ textAlign: "center", fontSize: "13px", color: "#6b7280", marginTop: "24px" }}>
           Contact your fleet manager if you need access.
         </p>
       </div>

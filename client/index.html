@@ -2,11 +2,25 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FlowStock</title>
+    <title>FlowStock — B2B Inventory & Logistics</title>
+    <meta name="description" content="FlowStock: Manage your business inventory, orders, and deliveries — all in one place." />
+    <meta name="theme-color" content="#6366f1" />
+
+    <!-- Favicon & PWA icons -->
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
   </head>
   <body>
+  <script>
+    if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+      window.location.replace('/landing.html');
+    }
+  </script>
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
