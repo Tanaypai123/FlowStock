@@ -285,6 +285,10 @@ function ProductDetailModal({ item, cartQty, onAdd, onRemove, onChangeQty, busin
 function ProductCard({ item, cartQty, onAdd, onRemove, onChangeQty, businessInfo, onViewDetail }) {
   const [showDetails, setShowDetails] = useState(false);
   const [imgErr,      setImgErr]      = useState(false);
+
+  // Reset error state when product changes (prevents stale error from previous render)
+  useEffect(() => { setImgErr(false); }, [item.id]);
+
   const isLow = item.low_stock_alert > 0 && item.quantity <= item.low_stock_alert;
 
   return (
@@ -311,6 +315,8 @@ function ProductCard({ item, cartQty, onAdd, onRemove, onChangeQty, businessInfo
               src={item.image_url}
               alt={item.name}
               onError={() => setImgErr(true)}
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
               className="w-full h-full object-cover sm:group-hover:scale-105 transition-transform duration-300"
             />
           ) : (
@@ -1013,7 +1019,7 @@ function CartSidebar({ cart, products, onClose, onClearItem, onChangeQty, onChec
                       <div className="flex gap-2.5 flex-1 min-w-0">
                         {/* Mini thumbnail in cart */}
                         {p.image_url ? (
-                          <img src={p.image_url} alt={p.name} className="h-10 w-10 rounded-lg object-cover shrink-0 border border-slate-100" />
+                          <img src={p.image_url} alt={p.name} crossOrigin="anonymous" referrerPolicy="no-referrer" className="h-10 w-10 rounded-lg object-cover shrink-0 border border-slate-100" />
                         ) : (
                           <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-400 shrink-0">
                             {p.name.slice(0,2).toUpperCase()}
@@ -1058,7 +1064,7 @@ function CartSidebar({ cart, products, onClose, onClearItem, onChangeQty, onChec
                       {recs.map((p) => (
                         <div key={p.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2.5">
                           {p.image_url ? (
-                            <img src={p.image_url} alt={p.name} className="h-9 w-9 rounded-lg object-cover shrink-0 border border-slate-100" />
+                            <img src={p.image_url} alt={p.name} crossOrigin="anonymous" referrerPolicy="no-referrer" className="h-9 w-9 rounded-lg object-cover shrink-0 border border-slate-100" />
                           ) : (
                             <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center text-[10px] font-bold text-white shrink-0">
                               {p.name.slice(0,2).toUpperCase()}
