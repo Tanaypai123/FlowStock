@@ -2,13 +2,15 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 
 /* ── API helpers ─────────────────────────────────────────────────────────── */
+const API_BASE = import.meta.env.VITE_API_URL ?? "";
+
 async function getToken() {
   const { data } = await supabase.auth.getSession();
   return data?.session?.access_token ?? null;
 }
 async function apiFetch(path, opts = {}) {
   const token = await getToken();
-  const res = await fetch(path, {
+  const res = await fetch(`${API_BASE}${path}`, {
     ...opts,
     headers: { Authorization: `Bearer ${token}`, ...(opts.headers || {}) },
   });
@@ -18,7 +20,7 @@ async function apiFetch(path, opts = {}) {
 }
 async function downloadBlob(url, method = "GET", body, filename) {
   const token = await getToken();
-  const res = await fetch(url, {
+  const res = await fetch(`${API_BASE}${url}`, {
     method,
     headers: { Authorization: `Bearer ${token}`, ...(body ? { "Content-Type": "application/json" } : {}) },
     body: body ? JSON.stringify(body) : undefined,
@@ -33,7 +35,7 @@ async function downloadBlob(url, method = "GET", body, filename) {
 }
 async function viewBlob(url) {
   const token = await getToken();
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetch(`${API_BASE}${url}`, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || `Error ${res.status}`); }
   const blob = await res.blob();
   const burl = URL.createObjectURL(blob);
