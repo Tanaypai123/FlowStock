@@ -1,8 +1,9 @@
 import PDFDocument from "pdfkit";
 import { Router } from "express";
 import { supabaseAdmin } from "../../lib/supabase.js";
-import { requireAdmin } from "../middleware/requireAdmin.js";
-import { requireAuth }  from "../middleware/requireAuth.js";
+import { requireAdmin }        from "../middleware/requireAdmin.js";
+import { requireAuth }          from "../middleware/requireAuth.js";
+import { requireAuthOrDriver }  from "../middleware/requireAuthOrDriver.js";
 
 import { notifyOrderStatus } from "../services/notificationService.js";
 import {
@@ -473,7 +474,7 @@ function renderInvoiceDocument(doc, opts) {
 export const ordersRouter = Router();
 
 // ── POST /:id/verify-delivery — accessible by drivers too (requireAuth only) ──
-ordersRouter.post("/:id/verify-delivery", requireAuth, async (req, res) => {
+ordersRouter.post("/:id/verify-delivery", requireAuthOrDriver, async (req, res) => {
   try {
     const { id } = req.params;
     if (!isUuid(id)) return res.status(400).json({ success: false, error: "Invalid order ID" });

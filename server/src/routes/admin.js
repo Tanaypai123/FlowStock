@@ -1340,6 +1340,19 @@ adminRouter.put("/business-profile", async (req, res) => {
       return res.status(400).json({ success: false, error: "Invalid business_type" });
     }
 
+    // Fetch existing profile to preserve business_code (never overwrite an existing code).
+    // If no row exists yet, generate a fresh code so the INSERT doesn't violate NOT NULL.
+    const { data: existing } = await supabaseAdmin
+      .from("business_profile")
+      .select("business_code")
+      .eq("admin_id", adminId)
+      .maybeSingle();
+
+    const existingCode = existing?.business_code?.trim() || null;
+    const generatedCode = existingCode
+      ? existingCode
+      : Math.random().toString(36).substring(2, 8).toUpperCase();
+
     const payload = {
       admin_id:           adminId,
       business_name:      business_name.trim(),
@@ -1354,6 +1367,7 @@ adminRouter.put("/business-profile", async (req, res) => {
       brand_color:        brand_color?.trim()        || "#6366f1",
       updates_phone:      updates_phone.trim(),
       updated_at:         new Date().toISOString(),
+      business_code:      generatedCode,
     };
 
     const { data, error } = await supabaseAdmin
