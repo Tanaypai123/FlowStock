@@ -158,7 +158,7 @@ export default function AuthCallback() {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ businessCode: pendingJoinCode }),
+            body: JSON.stringify({ businessCode: pendingJoinCode, join_source: "join_link" }),
           });
           const joinJson = await joinRes.json();
           if (joinJson.success && joinJson.businessId) {

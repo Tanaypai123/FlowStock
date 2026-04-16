@@ -161,7 +161,7 @@ businessSetupRouter.post("/setup", async (req, res) => {
     // supabaseAdmin bypasses RLS — no permission issues.
     const { error: mappingError } = await supabaseAdmin
       .from("user_businesses")
-      .insert({ user_id: userId, business_id: businessId, role: "admin" });
+      .insert({ user_id: userId, business_id: businessId, role: "admin", join_source: "join_code" });
 
     if (mappingError) {
       const isDuplicate =
@@ -230,7 +230,9 @@ businessSetupRouter.post("/join", async (req, res) => {
     const userId = req.authUser?.id;
     if (!userId) return res.status(401).json({ success: false, error: "Unauthorized" });
 
-    const { businessCode } = req.body ?? {};
+    const VALID_SOURCES = new Set(["join_code", "join_link", "invite_upload", "manual_invite"]);
+    const { businessCode, join_source: rawSource } = req.body ?? {};
+    const join_source = VALID_SOURCES.has(rawSource) ? rawSource : "join_code";
     if (!businessCode?.trim()) {
       return res.status(400).json({ success: false, error: "businessCode is required" });
     }
@@ -269,7 +271,7 @@ businessSetupRouter.post("/join", async (req, res) => {
     // 3. Insert new membership as customer
     const { error: insertErr } = await supabaseAdmin
       .from("user_businesses")
-      .insert({ user_id: userId, business_id: businessId, role: "customer" });
+      .insert({ user_id: userId, business_id: businessId, role: "customer", join_source });
 
     if (insertErr) {
       // Handle race-condition duplicate

@@ -3,6 +3,7 @@ import { supabaseAdmin } from "../../lib/supabase.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
+import zlib from "node:zlib";
 
 // ─── crypto helper (same algo as driverAuth.js) ──────────────────────────────
 const scryptAsync = promisify(scrypt);
@@ -78,9 +79,609 @@ adminRouter.get("/users", async (_req, res) => {
   }
 });
 
+// ─── GET /api/admin/customers ─────────────────────────────────────────────────
+// Returns ALL customers: platform joiners (user_businesses) MERGED WITH
+// contacts added/uploaded via Customer Boost (customer_contacts).
+// Query param: ?source=all|invite_upload|join_code|join_link|manual_invite|boost_contact
+adminRouter.get("/customers", async (req, res) => {
+  try {
+    const adminId = req.adminUser?.id;
+    if (!adminId) return res.status(401).json({ success: false, error: "Unauthorized" });
+
+    const VALID_SOURCES = new Set(["invite_upload", "join_code", "join_link", "manual_invite", "boost_contact"]);
+    const { source } = req.query;
+
+    // 1. Get this admin's business
+    const { data: bp, error: bpErr } = await supabaseAdmin
+      .from("business_profile")
+      .select("id")
+      .eq("admin_id", adminId)
+      .maybeSingle();
+
+    if (bpErr) return res.status(500).json({ success: false, error: bpErr.message });
+    if (!bp)   return res.json({ success: true, data: [] });
+
+    // ── Fetch platform joiners (user_businesses) ────────────────────────────
+    // Always fetch unless the filter is exclusively boost_contact
+    let platformRows = [];
+    if (source !== "boost_contact") {
+      // Build query — note: Supabase builder is immutable, each .eq() returns new instance
+      let query = supabaseAdmin
+        .from("user_businesses")
+        .select("user_id, join_source, created_at")
+        .eq("business_id", bp.id)
+        .eq("role", "customer")
+        .order("created_at", { ascending: false });
+
+      // Apply join_source filter only when a specific source is requested
+      if (source && source !== "all" && VALID_SOURCES.has(source)) {
+        query = query.eq("join_source", source); // must reassign — builder is immutable
+      }
+
+      const { data: rows, error: rowsErr } = await query;
+      if (rowsErr) return res.status(500).json({ success: false, error: rowsErr.message });
+      platformRows = rows ?? [];
+    }
+
+    // Resolve display names for platform joiners
+    const userIds = platformRows.map((r) => r.user_id).filter(Boolean);
+    const profileMap = new Map();
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabaseAdmin
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", userIds);
+      (profiles ?? []).forEach((p) => profileMap.set(p.id, p.display_name ?? null));
+    }
+
+    const platformCustomers = platformRows.map((r) => ({
+      id:            r.user_id,
+      user_id:       r.user_id,
+      name:          profileMap.get(r.user_id) ?? `Customer ${String(r.user_id).slice(0, 8)}…`,
+      phone:         null,
+      business_name: null,
+      join_source:   r.join_source ?? "join_code",
+      joined_at:     r.created_at,
+      type:          "platform",
+    }));
+
+    // ── Fetch Customer Boost contacts (customer_contacts) ──────────────────
+    let boostContacts = [];
+    if (!source || source === "all" || source === "boost_contact") {
+      const { data: contacts } = await supabaseAdmin
+        .from("customer_contacts")
+        .select("id, name, phone, business_name, source, invite_status, created_at")
+        .eq("business_id", bp.id)
+        .order("created_at", { ascending: false });
+
+      boostContacts = (contacts ?? []).map((c) => ({
+        id:            `contact_${c.id}`,
+        user_id:       null,
+        name:          c.name,
+        phone:         c.phone,
+        business_name: c.business_name ?? null,
+        join_source:   "boost_contact",
+        invite_status: c.invite_status,
+        joined_at:     c.created_at,
+        type:          "contact",
+      }));
+    }
+
+    // ── Merge: deduplicate contacts whose phone matches a platform joiner ──
+    // (Simple dedup: if a boost contact phone appears in platform, skip the contact row)
+    const platformPhones = new Set(
+      platformCustomers.map((c) => c.phone).filter(Boolean)
+    );
+    const dedupedBoost = boostContacts.filter(
+      (c) => !c.phone || !platformPhones.has(c.phone)
+    );
+
+    // Merge and sort by date descending
+    const combined = [...platformCustomers, ...dedupedBoost].sort(
+      (a, b) => new Date(b.joined_at) - new Date(a.joined_at)
+    );
+
+    return res.json({ success: true, data: combined });
+  } catch (e) {
+    console.error("[GET /admin/customers]", e);
+    return res.status(500).json({ success: false, error: "Failed to fetch customers" });
+  }
+});
+
+// ─── Customer Contacts (Customer Boost) ──────────────────────────────────────
+// Ensure table exists on first use. This is idempotent and safe to run every
+// cold start — Supabase/Postgres treats it as a no-op if already created.
+async function ensureContactsTable() {
+  await supabaseAdmin.rpc("exec_sql", {
+    sql: `
+      CREATE TABLE IF NOT EXISTS customer_contacts (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        business_id UUID NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        phone VARCHAR(20) NOT NULL,
+        source VARCHAR(20) DEFAULT 'manual',
+        invite_status VARCHAR(20) DEFAULT 'pending',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (business_id, phone)
+      );
+    `,
+  }).catch(() => {/* rpc may not exist — table created via migration instead */});
+}
+
+/** GET /api/admin/customer-contacts/stats — analytics for Customer Boost */
+adminRouter.get("/customer-contacts/stats", async (req, res) => {
+  try {
+    const adminId = req.adminUser?.id;
+    if (!adminId) return res.status(401).json({ success: false, error: "Unauthorized" });
+
+    const { data: bp } = await supabaseAdmin
+      .from("business_profile").select("id").eq("admin_id", adminId).maybeSingle();
+    if (!bp) return res.json({ success: true, data: { total_contacts: 0, invites_sent: 0, pending_invites: 0, joined_via_invite: 0, source_breakdown: { manual: 0, upload: 0 } } });
+
+    // Fetch all contacts for this business (only fields needed for stats)
+    const { data: contacts, error: cErr } = await supabaseAdmin
+      .from("customer_contacts")
+      .select("source, invite_status")
+      .eq("business_id", bp.id);
+    if (cErr) return res.status(500).json({ success: false, error: cErr.message });
+
+    const rows = contacts ?? [];
+    const total_contacts  = rows.length;
+    const invites_sent    = rows.filter((r) => r.invite_status === "sent").length;
+    const pending_invites = rows.filter((r) => r.invite_status === "pending").length;
+    const joined_via_invite = rows.filter((r) => ["invited", "joined"].includes(r.invite_status)).length;
+
+    // Source breakdown from contacts table
+    const source_breakdown = {
+      manual: rows.filter((r) => r.source === "manual").length,
+      upload: rows.filter((r) => r.source === "upload").length,
+    };
+
+    // Join source breakdown from user_businesses (actual platform joiners)
+    const { data: userBiz } = await supabaseAdmin
+      .from("user_businesses")
+      .select("join_source")
+      .eq("business_id", bp.id);
+
+    const joiners = userBiz ?? [];
+    const join_source_breakdown = {
+      join_code:     joiners.filter((r) => r.join_source === "join_code").length,
+      join_link:     joiners.filter((r) => r.join_source === "join_link").length,
+      invite_upload: joiners.filter((r) => r.join_source === "invite_upload").length,
+      manual_invite: joiners.filter((r) => r.join_source === "manual_invite").length,
+    };
+
+    return res.json({
+      success: true,
+      data: {
+        total_contacts,
+        invites_sent,
+        pending_invites,
+        joined_via_invite,
+        source_breakdown,
+        join_source_breakdown,
+        total_joined: joiners.length,
+      },
+    });
+  } catch (e) {
+    console.error("[GET /admin/customer-contacts/stats]", e);
+    return res.status(500).json({ success: false, error: "Failed to fetch stats" });
+  }
+});
+
+/** GET /api/admin/customer-contacts — list all contacts for this business */
+adminRouter.get("/customer-contacts", async (req, res) => {
+  try {
+    const adminId = req.adminUser?.id;
+    if (!adminId) return res.status(401).json({ success: false, error: "Unauthorized" });
+
+    const { data: bp } = await supabaseAdmin
+      .from("business_profile").select("id").eq("admin_id", adminId).maybeSingle();
+    if (!bp) return res.json({ success: true, data: [] });
+
+    const { data, error } = await supabaseAdmin
+      .from("customer_contacts")
+      .select("id, name, phone, business_name, source, invite_status, created_at")
+      .eq("business_id", bp.id)
+      .order("created_at", { ascending: false });
+
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    return res.json({ success: true, data: data ?? [] });
+  } catch (e) {
+    console.error("[GET /admin/customer-contacts]", e);
+    return res.status(500).json({ success: false, error: "Failed to fetch contacts" });
+  }
+});
+
+/** POST /api/admin/customer-contacts/add — add single contact manually */
+adminRouter.post("/customer-contacts/add", async (req, res) => {
+  try {
+    const adminId = req.adminUser?.id;
+    if (!adminId) return res.status(401).json({ success: false, error: "Unauthorized" });
+
+    const { name, phone, business_name } = req.body ?? {};
+    if (!name?.trim()) return res.status(400).json({ success: false, error: "name is required" });
+    if (!phone?.trim()) return res.status(400).json({ success: false, error: "phone is required" });
+
+    const { data: bp } = await supabaseAdmin
+      .from("business_profile").select("id").eq("admin_id", adminId).maybeSingle();
+    if (!bp) return res.status(400).json({ success: false, error: "No business found" });
+
+    const { data, error } = await supabaseAdmin
+      .from("customer_contacts")
+      .upsert(
+        { business_id: bp.id, name: name.trim(), phone: phone.trim(),
+          business_name: business_name?.trim() || null,
+          source: "manual", invite_status: "pending" },
+        { onConflict: "business_id,phone", ignoreDuplicates: false }
+      )
+      .select("id, name, phone, business_name, source, invite_status, created_at")
+      .maybeSingle();
+
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    return res.status(201).json({ success: true, data });
+  } catch (e) {
+    console.error("[POST /admin/customer-contacts/add]", e);
+    return res.status(500).json({ success: false, error: "Failed to add contact" });
+  }
+});
+
+/** POST /api/admin/customer-contacts/bulk — bulk insert from CSV/Excel upload */
+adminRouter.post("/customer-contacts/bulk", async (req, res) => {
+  try {
+    const adminId = req.adminUser?.id;
+    if (!adminId) return res.status(401).json({ success: false, error: "Unauthorized" });
+
+    const { contacts } = req.body ?? {};
+    if (!Array.isArray(contacts) || contacts.length === 0) {
+      return res.status(400).json({ success: false, error: "contacts array is required" });
+    }
+
+    const { data: bp } = await supabaseAdmin
+      .from("business_profile").select("id").eq("admin_id", adminId).maybeSingle();
+    if (!bp) return res.status(400).json({ success: false, error: "No business found" });
+
+    const rows = contacts
+      .filter((c) => c.name?.trim() && c.phone?.trim())
+      .map((c) => ({
+        business_id:   bp.id,
+        name:          String(c.name).trim(),
+        phone:         String(c.phone).trim(),
+        business_name: c.business_name?.trim() || null,
+        source:        "upload",
+        invite_status: "pending",
+      }));
+
+    if (rows.length === 0) {
+      return res.status(400).json({ success: false, error: "No valid contacts in payload" });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("customer_contacts")
+      .upsert(rows, { onConflict: "business_id,phone", ignoreDuplicates: true })
+      .select("id");
+
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    return res.json({ success: true, saved: data?.length ?? rows.length, total: rows.length });
+  } catch (e) {
+    console.error("[POST /admin/customer-contacts/bulk]", e);
+    return res.status(500).json({ success: false, error: "Bulk insert failed" });
+  }
+});
+
+/** DELETE /api/admin/customer-contacts/:id — remove a contact */
+adminRouter.delete("/customer-contacts/:id", async (req, res) => {
+  try {
+    const adminId = req.adminUser?.id;
+    if (!adminId) return res.status(401).json({ success: false, error: "Unauthorized" });
+
+    const { id } = req.params;
+    const { data: bp } = await supabaseAdmin
+      .from("business_profile").select("id").eq("admin_id", adminId).maybeSingle();
+    if (!bp) return res.status(400).json({ success: false, error: "No business found" });
+
+    const { error } = await supabaseAdmin
+      .from("customer_contacts")
+      .delete()
+      .eq("id", id)
+      .eq("business_id", bp.id); // ownership guard
+
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    return res.json({ success: true });
+  } catch (e) {
+    console.error("[DELETE /admin/customer-contacts/:id]", e);
+    return res.status(500).json({ success: false, error: "Failed to delete contact" });
+  }
+});
+
+/** PATCH /api/admin/customer-contacts/:id/status — update invite_status */
+adminRouter.patch("/customer-contacts/:id/status", async (req, res) => {
+  try {
+    const adminId = req.adminUser?.id;
+    if (!adminId) return res.status(401).json({ success: false, error: "Unauthorized" });
+
+    const { id } = req.params;
+    const { invite_status } = req.body ?? {};
+    const VALID = new Set(["pending", "sent", "invited", "joined"]);
+    if (!VALID.has(invite_status)) {
+      return res.status(400).json({ success: false, error: "Invalid invite_status value" });
+    }
+
+    const { data: bp } = await supabaseAdmin
+      .from("business_profile").select("id").eq("admin_id", adminId).maybeSingle();
+    if (!bp) return res.status(400).json({ success: false, error: "No business found" });
+
+    const { data, error } = await supabaseAdmin
+      .from("customer_contacts")
+      .update({ invite_status })
+      .eq("id", id)
+      .eq("business_id", bp.id) // ownership guard
+      .select("id, invite_status")
+      .maybeSingle();
+
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    if (!data)  return res.status(404).json({ success: false, error: "Contact not found" });
+    return res.json({ success: true, data });
+  } catch (e) {
+    console.error("[PATCH /admin/customer-contacts/:id/status]", e);
+    return res.status(500).json({ success: false, error: "Failed to update status" });
+  }
+});
+
+// ─── POST /api/admin/customer-contacts/extract-file ──────────────────────────
+// Accepts multipart/form-data with a single "file" field.
+// Uses ONLY Node built-ins (no multer/pdf-parse/mammoth/tesseract needed).
+// - PDF  → reads raw bytes, extracts text between PDF stream markers
+// - DOCX → unzips the docx, reads word/document.xml, strips XML tags
+// - Images → returns { needsOcr: true } so client falls back to browser OCR
+// Then runs regex to extract phone numbers + nearby name/business text.
+
+/** Parse raw multipart body — returns { filename, mimetype, buffer } */
+async function parseMultipart(req) {
+  const ct = req.headers["content-type"] ?? "";
+  const boundaryMatch = ct.match(/boundary=([^\s;]+)/);
+  if (!boundaryMatch) throw new Error("No multipart boundary found");
+  const boundary = boundaryMatch[1];
+
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const body = Buffer.concat(chunks);
+
+  // Split on boundary
+  const sep  = Buffer.from(`--${boundary}`);
+  const parts = [];
+  let start = body.indexOf(sep) + sep.length + 2; // skip \r\n
+  while (start < body.length) {
+    const next = body.indexOf(sep, start);
+    if (next === -1) break;
+    parts.push(body.subarray(start, next - 2)); // trim trailing \r\n
+    start = next + sep.length + 2;
+  }
+
+  for (const part of parts) {
+    const headerEnd = part.indexOf("\r\n\r\n");
+    if (headerEnd === -1) continue;
+    const headers = part.subarray(0, headerEnd).toString("utf8");
+    const data    = part.subarray(headerEnd + 4);
+
+    const nameMatch     = headers.match(/name="([^"]+)"/);
+    const fileMatch     = headers.match(/filename="([^"]+)"/);
+    const mimeMatch     = headers.match(/Content-Type:\s*([^\r\n]+)/i);
+    if (nameMatch?.[1] === "file" && fileMatch) {
+      return {
+        filename: fileMatch[1],
+        mimetype: mimeMatch?.[1]?.trim() ?? "application/octet-stream",
+        buffer:   data,
+      };
+    }
+  }
+  throw new Error("No file part found in multipart body");
+}
+
+/** Extract readable text from a raw PDF buffer (text-layer PDFs only) */
+function extractPdfText(buf) {
+  const text = buf.toString("latin1");
+  const chunks = [];
+  // Extract text between BT...ET markers (PDF text objects)
+  const btRe = /BT([\s\S]*?)ET/g;
+  let m;
+  while ((m = btRe.exec(text)) !== null) {
+    // Extract string literals: (Hello) or <hex> — take parenthesised ones
+    const inner = m[1];
+    const strRe = /\(([^)\\]*(?:\\.[^)\\]*)*)\)/g;
+    let s;
+    while ((s = strRe.exec(inner)) !== null) {
+      chunks.push(s[1].replace(/\\n/g, " ").replace(/\\/g, ""));
+    }
+  }
+  return chunks.join(" ");
+}
+
+/** Extract text from a DOCX buffer (DOCX = ZIP containing XML) */
+function extractDocxText(buf) {
+  // A DOCX is a ZIP. We locate the word/document.xml entry by scanning
+  // for its local file header signature + filename, then read the data.
+  const sig  = Buffer.from([0x50, 0x4b, 0x03, 0x04]); // PK\x03\x04
+  const target = "word/document.xml";
+  let pos = 0;
+  while (pos < buf.length - 30) {
+    const idx = buf.indexOf(sig, pos);
+    if (idx === -1) break;
+    const fnLen   = buf.readUInt16LE(idx + 26);
+    const extraLen= buf.readUInt16LE(idx + 28);
+    const fnStart = idx + 30;
+    const fn      = buf.subarray(fnStart, fnStart + fnLen).toString("utf8");
+    const dataStart = fnStart + fnLen + extraLen;
+    const compSize  = buf.readUInt32LE(idx + 18);
+    const method    = buf.readUInt16LE(idx + 8);
+
+    if (fn === target) {
+      const compressed = buf.subarray(dataStart, dataStart + compSize);
+      let xml;
+      if (method === 8) {
+        // deflate — use zlib.inflateRawSync
+        try { xml = zlib.inflateRawSync(compressed).toString("utf8"); }
+        catch { xml = compressed.toString("utf8"); }
+      } else {
+        xml = compressed.toString("utf8");
+      }
+      // Strip XML tags, decode common entities
+      return xml
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+        .replace(/&apos;/g, "'").replace(/&quot;/g, '"')
+        .replace(/\s+/g, " ").trim();
+    }
+    pos = dataStart + compSize;
+  }
+  return "";
+}
+
+/** Extract contacts from a block of plain text using regex heuristics */
+function extractContactsFromText(text) {
+  const contacts = [];
+  // Match 10-digit Indian mobile numbers (with optional +91 / 0 prefix)
+  const phoneRe = /(?:(?:\+91|91|0)?[-.\s]?)?([6-9]\d{9})/g;
+  let m;
+  const seen = new Set();
+
+  while ((m = phoneRe.exec(text)) !== null) {
+    const phone = m[1]; // 10 digits
+    if (seen.has(phone)) continue;
+    seen.add(phone);
+
+    // Take up to 80 chars before the phone number as context for name/business
+    const before = text.slice(Math.max(0, m.index - 80), m.index).trim();
+    const after  = text.slice(m.index + m[0].length, m.index + m[0].length + 80).trim();
+    const ctx    = (before + " " + after).replace(/[|:,\t]+/g, " ").trim();
+
+    // Heuristic: pick the longest word cluster near the number as the name
+    const words   = ctx.split(/\s+/).filter((w) => w.length > 1 && /[a-zA-Z\u0900-\u097F]/.test(w));
+    const name    = words.slice(0, 3).join(" ") || "Unknown";
+
+    // Look for business keywords
+    const bizRe   = /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Store|Shop|Mart|Traders?|Enterprises?|Co\.?|Ltd\.?|Pvt|Industries?|Agency))/;
+    const bizMatch = (before + " " + after).match(bizRe);
+    const business_name = bizMatch ? bizMatch[1].trim() : "";
+
+    contacts.push({ name, phone: `+91${phone}`, business_name });
+  }
+  return contacts;
+}
+
+adminRouter.post("/customer-contacts/extract-file", async (req, res) => {
+  try {
+    const adminId = req.adminUser?.id;
+    if (!adminId) return res.status(401).json({ success: false, error: "Unauthorized" });
+
+    const ct = req.headers["content-type"] ?? "";
+    if (!ct.includes("multipart/form-data")) {
+      return res.status(400).json({ success: false, error: "Expected multipart/form-data" });
+    }
+
+    const { filename, mimetype, buffer } = await parseMultipart(req);
+    const ext = filename.split(".").pop().toLowerCase();
+
+    // Images — tell client to handle via browser OCR (Tesseract.js CDN)
+    if (mimetype.startsWith("image/") || ["jpg","jpeg","png","webp"].includes(ext)) {
+      return res.json({ success: true, needsOcr: true });
+    }
+
+    let rawText = "";
+
+    if (mimetype === "application/pdf" || ext === "pdf") {
+      rawText = extractPdfText(buffer);
+    } else if (
+      mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      ext === "docx"
+    ) {
+      rawText = extractDocxText(buffer);
+    } else if (mimetype === "application/msword" || ext === "doc") {
+      // Legacy .doc — read printable ASCII regions
+      rawText = buffer.toString("latin1").replace(/[^\x20-\x7E\n]/g, " ");
+    } else {
+      // Plain text / CSV fallback
+      rawText = buffer.toString("utf8");
+    }
+
+    if (!rawText.trim()) {
+      return res.status(422).json({
+        success: false,
+        error: "Could not extract text from this file. Try a text-based PDF or docx.",
+      });
+    }
+
+    const contacts = extractContactsFromText(rawText);
+    if (contacts.length === 0) {
+      return res.status(422).json({
+        success: false,
+        error: "No phone numbers found in the file.",
+      });
+    }
+
+    return res.json({ success: true, contacts });
+  } catch (e) {
+    console.error("[POST /admin/customer-contacts/extract-file]", e);
+    return res.status(500).json({ success: false, error: e.message ?? "Extraction failed" });
+  }
+});
+
+/**
+ * POST /api/admin/customer-contacts/ocr
+ * Dedicated endpoint for image and PDF contact extraction.
+ * - PDF (text-layer): server-side text extraction → phone regex
+ * - Images (jpg/png/webp): returns { needsOcr: true } → client runs Tesseract CDN
+ * Accepts multipart/form-data with field "file".
+ */
+adminRouter.post("/customer-contacts/ocr", async (req, res) => {
+  try {
+    const adminId = req.adminUser?.id;
+    if (!adminId) return res.status(401).json({ success: false, error: "Unauthorized" });
+
+    const ct = req.headers["content-type"] ?? "";
+    if (!ct.includes("multipart/form-data")) {
+      return res.status(400).json({ success: false, error: "Expected multipart/form-data" });
+    }
+
+    let parsed;
+    try {
+      parsed = await parseMultipart(req);
+    } catch {
+      return res.status(400).json({ success: false, error: "Could not extract contacts — please check file format" });
+    }
+
+    const { filename, mimetype, buffer } = parsed;
+    const ext = (filename.split(".").pop() ?? "").toLowerCase();
+
+    // Images → return needsOcr so client runs Tesseract CDN
+    if (mimetype.startsWith("image/") || ["jpg", "jpeg", "png", "webp"].includes(ext)) {
+      return res.json({ success: true, needsOcr: true });
+    }
+
+    // PDF → server-side text extraction
+    if (mimetype === "application/pdf" || ext === "pdf") {
+      const rawText = extractPdfText(buffer);
+      if (!rawText.trim()) {
+        return res.status(422).json({ success: false, error: "Could not extract contacts — please check file format" });
+      }
+      const contacts = extractContactsFromText(rawText);
+      if (!contacts.length) {
+        return res.status(422).json({ success: false, error: "Could not extract contacts — please check file format" });
+      }
+      return res.json({ success: true, contacts });
+    }
+
+    return res.status(415).json({ success: false, error: "Please upload a JPG, PNG, WEBP, or PDF file." });
+  } catch (e) {
+    console.error("[POST /admin/customer-contacts/ocr]", e);
+    return res.status(500).json({ success: false, error: "Could not extract contacts — please check file format" });
+  }
+});
+
 adminRouter.post("/create-user", async (req, res) => {
   try {
     const { phone: rawPhone, password, role } = req.body ?? {};
+
 
     if (rawPhone === undefined || password === undefined || role === undefined) {
       return res.status(400).json({

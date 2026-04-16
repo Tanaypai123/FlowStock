@@ -13,6 +13,8 @@ import { Orders } from "./pages/admin/Orders.jsx";
 import { Drivers } from "./pages/admin/Drivers.jsx";
 import { Reports } from "./pages/admin/Reports.jsx";
 import { Invoices } from "./pages/admin/Invoices.jsx";
+import { Customers } from "./pages/admin/Customers.jsx";
+import { CustomerBoost } from "./pages/admin/CustomerBoost.jsx";
 import { AdminComplaints } from "./pages/admin/Complaints.jsx";
 import { BusinessSetup } from "./pages/admin/BusinessSetup.jsx";
 import Signup from "./pages/Signup.jsx";
@@ -153,8 +155,10 @@ export default function App() {
           <Route path="drivers" element={<Drivers />} />
           <Route path="reports"     element={<Reports />} />
           <Route path="invoices"    element={<Invoices />} />
-          <Route path="complaints" element={<AdminComplaints />} />
-          <Route path="setup" element={<BusinessSetup />} />
+          <Route path="complaints"     element={<AdminComplaints />} />
+          <Route path="customers"      element={<Customers />} />
+          <Route path="customer-boost" element={<CustomerBoost />} />
+          <Route path="setup"          element={<BusinessSetup />} />
         </Route>
       </Route>
 

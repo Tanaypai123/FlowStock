@@ -91,6 +91,13 @@ function IconInvite(props) {
     </svg>
   );
 }
+function IconBoost(props) {
+  return (
+    <span aria-hidden style={{ fontSize: "1.1em", lineHeight: 1, display: "inline-flex", alignItems: "center" }} {...props}>
+      🚀
+    </span>
+  );
+}
 function IconChevron(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden {...props}>
@@ -127,9 +134,11 @@ const NAV = [
   { to: "/admin/inventory",   label: "Inventory",   Icon: IconInventory  },
   { to: "/admin/orders",      label: "Orders",      Icon: IconOrders     },
   { to: "/admin/drivers",     label: "Drivers",     Icon: IconDrivers    },
+  { to: "/admin/customers",      label: "Customers",       Icon: IconInvite                          },
+  { to: "/admin/customer-boost", label: "Customer Boost",   Icon: IconBoost,    feature: "new" },
   { to: "/admin/reports",     label: "Reports",     Icon: IconReports    },
-  { to: "/admin/invoices",    label: "Invoice",     Icon: IconInvoice,   feature: "invoice" },
-  { to: "/admin/complaints",  label: "Complaints",  Icon: IconComplaints, badge: true },
+  { to: "/admin/invoices",    label: "Invoice",     Icon: IconInvoice,   feature: "new" },
+  { to: "/admin/complaints",  label: "Complaints",  Icon: IconComplaints, badge: true, feature: "new" },
   { to: "/admin/setup",       label: "Settings",    Icon: IconSettings   },
 ];
 
@@ -469,6 +478,27 @@ export function AdminLayout() {
 
         {/* Nav links */}
         <nav className="flex flex-1 flex-col gap-0.5 p-2">
+          <style>{`
+            @keyframes pulse-new {
+              0%   { transform: scale(1);   box-shadow: 0 0 0 0   rgba(239,68,68,0.7); }
+              70%  { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(239,68,68,0);   }
+              100% { transform: scale(1);   box-shadow: 0 0 0 0   rgba(239,68,68,0);   }
+            }
+            .badge-new {
+              animation: pulse-new 1.8s infinite;
+              background: linear-gradient(135deg, #ef4444, #dc2626);
+              color: white;
+              font-size: 9px;
+              font-weight: 700;
+              padding: 2px 5px;
+              border-radius: 999px;
+              letter-spacing: 0.5px;
+              display: inline-block;
+              line-height: 1.2;
+              white-space: nowrap;
+              user-select: none;
+            }
+          `}</style>
           {NAV.map(({ to, label, Icon, badge, feature }) => (
             <NavLink key={to} to={to} className={navLinkClass} title={label} onClick={() => setSidebarOpen(false)}>
               <div className="relative">
@@ -478,12 +508,16 @@ export function AdminLayout() {
                     {openCount > 9 ? "9+" : openCount}
                   </span>
                 )}
-                {feature && <NewBadge feature={feature} corner="tr" ringColor="#0f172a" />}
+                {feature && (
+                  <span className="absolute -top-1.5 -right-1.5">
+                    <span className="badge-new">NEW</span>
+                  </span>
+                )}
               </div>
               {/* Show label in mobile drawer (always) + at xl on desktop */}
-              <span className="md:hidden xl:inline flex items-center">
+              <span className="md:hidden xl:inline flex items-center gap-1.5">
                 {label}
-                {feature && <NewBadge feature={feature} inline />}
+                {feature && <span className="badge-new">NEW</span>}
               </span>
               {badge && openCount > 0 && (
                 <span className="ml-auto md:hidden xl:flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
