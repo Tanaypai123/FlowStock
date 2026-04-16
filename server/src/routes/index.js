@@ -12,6 +12,7 @@ import { complaintsRouter } from "./complaints.js";
 import { businessSetupRouter } from "./businessSetup.js";
 import { devRouter } from "./dev.js";
 import { bugsRouter } from "./bugs.js";
+import { invoicesRouter } from "./invoices.js";
 import { apiLogger } from "../middleware/apiLogger.js";
 
 /**
@@ -25,6 +26,7 @@ export function registerRoutes(app) {
   app.use(`${API_PREFIX}/admin`, adminRouter);
   app.use(`${API_PREFIX}/inventory`, inventoryRouter);
   app.use(`${API_PREFIX}/orders`, ordersRouter);
+  app.use(`${API_PREFIX}/invoices`, invoicesRouter);
   // Customer-facing routes: /api/customer/*
   app.use(`${API_PREFIX}/customer`, customerOrdersRouter);
   // Driver auth (phone+password) — mounted BEFORE /api/driver/* to avoid conflict

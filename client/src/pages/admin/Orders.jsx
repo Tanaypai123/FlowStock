@@ -198,7 +198,12 @@ async function openInvoicePdf(orderId) {
 
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
-  window.open(url, "_blank", "noopener,noreferrer");
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "invoice.pdf";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
@@ -1179,14 +1184,24 @@ export function Orders() {
                       <SlaCell order={o} />
                     </td>
                     <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        onClick={() => openDetail(o.id)}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        View
-                      </button>
-                    </td>
+  <div className="flex items-center gap-1.5">
+    <button
+      type="button"
+      onClick={() => openDetail(o.id)}
+      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors opacity-0 group-hover:opacity-100"
+    >
+      View
+    </button>
+    <button
+      type="button"
+      title="Download Invoice"
+      onClick={() => void openInvoicePdf(o.id)}
+      className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-100 hover:border-indigo-300 transition-colors opacity-0 group-hover:opacity-100"
+    >
+      🧾
+    </button>
+  </div>
+</td>
                   </tr>
                 ))}
               </tbody>
@@ -1310,6 +1325,25 @@ export function Orders() {
               </div>
             )}
           </div>
+
+          <div className="h-4 w-px bg-slate-700" />
+
+          {/* Bulk Invoice Download */}
+          <button
+            type="button"
+            title="Download invoices for selected orders"
+            onClick={async () => {
+              for (const id of selectedOrders) {
+                await openInvoicePdf(id);
+                // Delay so browser honours each programmatic download trigger
+                await new Promise((r) => setTimeout(r, 650));
+              }
+            }}
+            disabled={bulkLoading}
+            className="rounded-full bg-indigo-600 hover:bg-indigo-500 px-3.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+          >
+            🧾 Invoices
+          </button>
 
           <div className="h-4 w-px bg-slate-700" />
 

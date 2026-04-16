@@ -377,14 +377,7 @@ function renderInvoiceDocument(doc, opts) {
   }
   y += 10;
 
-  doc.font("Helvetica-Bold").fontSize(10).fillColor("#334155");
-  doc.text(
-    `Driver: ${summary.driver_name ?? "Not assigned"}`,
-    m,
-    y,
-    { width: contentW },
-  );
-  y = doc.y + 16;
+  y += 16;
 
   const colProduct = m;
   const colQty = m + 250;
