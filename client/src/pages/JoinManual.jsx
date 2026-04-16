@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { adminApi } from "../lib/adminApi.js";
 
+const API_BASE = import.meta.env.VITE_API_URL ?? "";
+
 const LS_BUSINESS_KEY = "selectedBusinessId";
 
 /**
@@ -41,7 +43,7 @@ export default function JoinManual() {
     setSearching(true);
 
     try {
-      const res  = await fetch(`/api/business/info/${encodeURIComponent(code.trim().toUpperCase())}`);
+      const res  = await fetch(`${API_BASE}/api/business/info/${encodeURIComponent(code.trim().toUpperCase())}`);
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Business not found");
       setBiz(json);

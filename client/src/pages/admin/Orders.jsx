@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { adminApi } from "../../lib/adminApi.js";
 import { supabase } from "../../lib/supabase.js";
 
+const API_BASE = import.meta.env.VITE_API_URL ?? "";
+
 const STATUS_TABS = [
   { value: "all",              label: "All" },
   { value: "pending",          label: "Pending" },
@@ -182,7 +184,7 @@ async function openInvoicePdf(orderId) {
     return;
   }
 
-  const res = await fetch(`/api/orders/${orderId}/invoice`, {
+  const res = await fetch(`${API_BASE}/api/orders/${orderId}/invoice`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 

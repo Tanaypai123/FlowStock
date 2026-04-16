@@ -4,6 +4,8 @@ import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase.js";
 import { adminApi } from "../lib/adminApi.js";
 
+const API_BASE = import.meta.env.VITE_API_URL ?? "";
+
 const LS_JOIN_CODE_KEY = "pendingJoinCode";
 const LS_BUSINESS_KEY  = "selectedBusinessId";
 
@@ -42,7 +44,7 @@ export default function Join() {
   useEffect(() => {
     if (!code) { setNotFound(true); setFetching(false); return; }
 
-    fetch(`/api/business/info/${encodeURIComponent(code.toUpperCase())}`)
+    fetch(`${API_BASE}/api/business/info/${encodeURIComponent(code.toUpperCase())}`)
       .then((r) => r.json())
       .then((json) => {
         if (!json.success) { setNotFound(true); }

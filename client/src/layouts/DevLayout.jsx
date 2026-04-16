@@ -2,6 +2,8 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
 import { useEffect, useState } from "react";
 
+const API_BASE = import.meta.env.VITE_API_URL ?? "";
+
 const NAV = [
   { to: "/dev/dashboard",     icon: "⬛", label: "Overview"      },
   { to: "/dev/businesses",    icon: "🏢", label: "Businesses"    },
@@ -28,7 +30,7 @@ export function DevLayout() {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
         if (!token) return;
-        const res = await fetch("/api/dev/bugs/count", {
+        const res = await fetch(`${API_BASE}/api/dev/bugs/count`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const json = await res.json().catch(() => ({}));
