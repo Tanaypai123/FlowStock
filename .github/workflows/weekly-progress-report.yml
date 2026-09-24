@@ -1,0 +1,54 @@
+name: Weekly Progress Report Auto-Commit
+on:
+  schedule:
+    - cron: '29 18 * * 4'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Generate Weekly PDF Report
+        run: node generate_pdf.mjs
+
+      - name: Archive Weekly Report
+        run: |
+          mkdir -p weekly_reports
+          REPORT="FlowStock_System_Documentation.pdf"
+
+          if [ ! -f "$REPORT" ]; then
+            echo "ERROR: PDF was not generated."
+            exit 1
+          fi
+
+          cp "$REPORT" "weekly_reports/FlowStock_Weekly_Progress_Report_Form-3_$(date -u +'%Y-%m-%d').pdf"
+
+      - name: Commit and Push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add weekly_reports/
+
+          if git diff --staged --quiet; then
+            echo "No new report to commit."
+          else
+            git commit -m "docs: archive FlowStock weekly progress report [skip ci]"
+            git push
+          fi
