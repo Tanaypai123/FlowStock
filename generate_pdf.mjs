@@ -2,8 +2,8 @@ import fs from "fs";
 import path from "path";
 import PDFDocument from "pdfkit";
 
-const SRC = "/Users/tanaysharma/Desktop/FlowStock1/FlowStock/FlowStock_System_Documentation.md";
-const OUT = "/Users/tanaysharma/Desktop/FlowStock1/FlowStock/FlowStock_System_Documentation.pdf";
+const SRC = new URL("./FlowStock_System_Documentation.md", import.meta.url).pathname;
+const OUT = new URL("./FlowStock_System_Documentation.pdf", import.meta.url).pathname;
 
 const md = fs.readFileSync(SRC, "utf8");
 const lines = md.split("\n");
