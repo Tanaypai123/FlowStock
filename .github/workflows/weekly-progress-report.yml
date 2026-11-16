@@ -16,20 +16,20 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.x'
-      - name: Install PDF & Graph Dependencies
+          node-version: '22.x'
+      - name: Install PDF Dependencies
         run: |
-          pip install reportlab matplotlib
+          npm ci
       - name: Generate Weekly PDF Report
         run: |
-          python generate_report.py weekly
+          node generate_pdf.mjs
       - name: Move PDF to Weekly Reports Directory & Commit to Repository
         run: |
           mkdir -p weekly_reports
-          mv *_Weekly_Progress_Report_Form-3_*.pdf weekly_reports/
+          mv FlowStock_System_Documentation.pdf "weekly_reports/FlowStock_System_Documentation_$(date -u +%F).pdf"
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add weekly_reports/
