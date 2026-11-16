@@ -1,54 +1,42 @@
 name: Weekly Progress Report Auto-Commit
 on:
   schedule:
+    # Runs every Thursday at 11:59 PM IST (which corresponds to 18:29 UTC)
+    # Cron format: min hour day-of-month month day-of-week (4 = Thursday)
     - cron: '29 18 * * 4'
-  workflow_dispatch:
-
+  workflow_dispatch: # Allows manual trigger anytime from the Actions tab
 permissions:
   contents: write
-
 jobs:
   generate-and-commit:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout Repository with Full Git History
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install Dependencies
-        run: npm ci
-
+          python-version: '3.x'
+      - name: Install PDF & Graph Dependencies
+        run: |
+          pip install reportlab matplotlib
       - name: Generate Weekly PDF Report
-        run: node generate_pdf.mjs
-
-      - name: Archive Weekly Report
+        run: |
+          python generate_report.py weekly
+      - name: Move PDF to Weekly Reports Directory & Commit to Repository
         run: |
           mkdir -p weekly_reports
-          REPORT="FlowStock_System_Documentation.pdf"
-
-          if [ ! -f "$REPORT" ]; then
-            echo "ERROR: PDF was not generated."
-            exit 1
-          fi
-
-          cp "$REPORT" "weekly_reports/FlowStock_Weekly_Progress_Report_Form-3_$(date -u +'%Y-%m-%d').pdf"
-
-      - name: Commit and Push
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mv *_Weekly_Progress_Report_Form-3_*.pdf weekly_reports/
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add weekly_reports/
-
+          
           if git diff --staged --quiet; then
-            echo "No new report to commit."
+            echo "No new changes or reports to commit."
           else
-            git commit -m "docs: archive FlowStock weekly progress report [skip ci]"
+            git commit -m "docs: archive Form-3 weekly progress report [skip ci]"
             git push
           fi
